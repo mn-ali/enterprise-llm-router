@@ -177,6 +177,15 @@ model_list:
   #     model: replicate/meta/llama-2-70b-chat
   #     api_key: os.environ/REPLICATE_API_KEY
 
+  # =========================================================================
+  # Navy AI (OpenAI Compatible)
+  # =========================================================================
+  - model_name: navy-deepseek
+    litellm_params:
+      model: openai/deepseek-v3.2
+      api_base: https://api.navy/v1
+      api_key: os.environ/NAVY_API_KEY
+
 # ---------------------------------------------------------------------------
 # Router Settings (load balancing)
 # ---------------------------------------------------------------------------
