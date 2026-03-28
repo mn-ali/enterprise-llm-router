@@ -1,0 +1,96 @@
+# =============================================================================
+# LiteLLM Proxy - Docker Compose
+# =============================================================================
+# Usage:
+#   1. Copy .env.example to .env and fill in API keys
+#   2. docker-compose up -d
+#   3. Visit http://localhost:4000/ui for the Admin Dashboard
+#   4. API available at http://localhost:4000
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # ---------------------------------------------------------------------------
+  # LiteLLM Proxy
+  # ---------------------------------------------------------------------------
+  litellm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: litellm-proxy
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://litellm:litellm_password@db:5432/litellm
+      - DOCS_URL=/docs
+      - ROOT_REDIRECT_URL=/ui
+    volumes:
+      - ./litellm_config.yaml:/app/litellm_config.yaml:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Access host Ollama
+    networks:
+      - litellm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health/liveliness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL - Spend Tracking, Virtual Keys, Team Management
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: litellm-db
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: litellm_password
+    volumes:
+      - litellm-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - litellm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm -d litellm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Redis - Distributed Rate Limiting & Caching (Optional)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: litellm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - litellm-redis-data:/data
+    restart: unless-stopped
+    networks:
+      - litellm-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  litellm-postgres-data:
+  litellm-redis-data:
+
+networks:
+  litellm-network:
+    driver: bridge

@@ -1,0 +1,196 @@
+# =============================================================================
+# LiteLLM Proxy Configuration
+# =============================================================================
+# Docs: https://docs.litellm.ai/docs/proxy/configs
+#
+# Environment variables referenced below (e.g. os.environ/AZURE_API_KEY)
+# are resolved at runtime from the container environment / .env file.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# General Settings
+# ---------------------------------------------------------------------------
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY       # proxy-wide auth key
+  database_url: os.environ/DATABASE_URL            # PostgreSQL for spend tracking (optional)
+  alerting: ["slack"]                              # optional alerts; remove if not needed
+
+litellm_settings:
+  drop_params: true          # silently drop unsupported params per-provider
+  set_verbose: false         # set true for debug logging
+  num_retries: 3             # auto-retry on transient failures
+  request_timeout: 600       # seconds
+  fallbacks:                 # if primary model fails, try the fallback
+    - gpt-4: [claude-sonnet]
+    - gpt-3.5-turbo: [claude-haiku]
+
+# ---------------------------------------------------------------------------
+# Model List
+# ---------------------------------------------------------------------------
+# Each entry defines a "model_name" (the alias your apps use) and the
+# underlying provider + credentials in "litellm_params".
+# ---------------------------------------------------------------------------
+model_list:
+
+  # =========================================================================
+  # Azure OpenAI
+  # =========================================================================
+  - model_name: gpt-4
+    litellm_params:
+      model: azure/gpt-4
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2024-06-01"
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: azure/gpt-4o
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2024-06-01"
+
+  - model_name: gpt-3.5-turbo
+    litellm_params:
+      model: azure/gpt-35-turbo
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2024-06-01"
+
+  - model_name: text-embedding-ada-002
+    litellm_params:
+      model: azure/text-embedding-ada-002
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: "2024-06-01"
+
+  # =========================================================================
+  # Anthropic (Claude)
+  # =========================================================================
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-haiku
+    litellm_params:
+      model: anthropic/claude-3-5-haiku-20241022
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-opus
+    litellm_params:
+      model: anthropic/claude-3-opus-20240229
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # =========================================================================
+  # Huggingface Inference Endpoints
+  # =========================================================================
+  - model_name: hf-starcoder
+    litellm_params:
+      model: huggingface/bigcode/starcoder
+      api_key: os.environ/HUGGINGFACE_API_KEY
+
+  - model_name: hf-mistral
+    litellm_params:
+      model: huggingface/mistralai/Mistral-7B-Instruct-v0.2
+      api_key: os.environ/HUGGINGFACE_API_KEY
+
+  # For dedicated HF inference endpoints, use:
+  # - model_name: my-hf-endpoint
+  #   litellm_params:
+  #     model: huggingface/<your-model-id>
+  #     api_base: https://<your-endpoint>.endpoints.huggingface.cloud
+  #     api_key: os.environ/HUGGINGFACE_API_KEY
+
+  # =========================================================================
+  # AWS Bedrock
+  # =========================================================================
+  - model_name: bedrock-claude
+    litellm_params:
+      model: bedrock/anthropic.claude-3-sonnet-20240229-v1:0
+      aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
+      aws_region_name: os.environ/AWS_REGION_NAME
+
+  - model_name: bedrock-titan
+    litellm_params:
+      model: bedrock/amazon.titan-text-express-v1
+      aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
+      aws_region_name: os.environ/AWS_REGION_NAME
+
+  # =========================================================================
+  # OpenAI (direct)
+  # =========================================================================
+  - model_name: openai-gpt-4
+    litellm_params:
+      model: openai/gpt-4
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: openai-gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  # =========================================================================
+  # Ollama (local models)
+  # =========================================================================
+  - model_name: ollama-llama3
+    litellm_params:
+      model: ollama/llama3
+      api_base: http://host.docker.internal:11434  # Ollama on host machine
+
+  - model_name: ollama-mistral
+    litellm_params:
+      model: ollama/mistral
+      api_base: http://host.docker.internal:11434
+
+  # =========================================================================
+  # Together AI
+  # =========================================================================
+  - model_name: together-mixtral
+    litellm_params:
+      model: together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1
+      api_key: os.environ/TOGETHERAI_API_KEY
+
+  # =========================================================================
+  # Google Vertex AI (Gemini)
+  # =========================================================================
+  # - model_name: gemini-pro
+  #   litellm_params:
+  #     model: vertex_ai/gemini-pro
+  #     vertex_project: os.environ/VERTEX_PROJECT
+  #     vertex_location: os.environ/VERTEX_LOCATION
+
+  # =========================================================================
+  # Cohere
+  # =========================================================================
+  - model_name: cohere-command
+    litellm_params:
+      model: cohere/command-r-plus
+      api_key: os.environ/COHERE_API_KEY
+
+  # =========================================================================
+  # Replicate
+  # =========================================================================
+  # - model_name: replicate-llama
+  #   litellm_params:
+  #     model: replicate/meta/llama-2-70b-chat
+  #     api_key: os.environ/REPLICATE_API_KEY
+
+# ---------------------------------------------------------------------------
+# Router Settings (load balancing)
+# ---------------------------------------------------------------------------
+router_settings:
+  routing_strategy: least-busy     # options: simple-shuffle, least-busy, usage-based-routing, latency-based-routing
+  num_retries: 3
+  timeout: 600
+  redis_host: os.environ/REDIS_HOST   # optional: Redis for distributed rate limiting
+  redis_port: os.environ/REDIS_PORT
+  redis_password: os.environ/REDIS_PASSWORD
+
+# ---------------------------------------------------------------------------
+# Environment / UI Settings (also set via environment variables)
+# ---------------------------------------------------------------------------
+environment_variables:
+  DOCS_URL: "/docs"
+  ROOT_REDIRECT_URL: "/ui"
