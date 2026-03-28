@@ -27,6 +27,7 @@ services:
       - DATABASE_URL=postgresql://litellm:litellm_password@db:5432/litellm
       - DOCS_URL=/docs
       - ROOT_REDIRECT_URL=/ui
+      - STORE_MODEL_IN_DB=True
     volumes:
       - ./litellm_config.yaml:/app/litellm_config.yaml:ro
     depends_on:
