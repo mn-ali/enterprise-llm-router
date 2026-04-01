@@ -16,7 +16,7 @@ Client App
                ▼
 ┌─────────────────────────────────┐
 │  LiteLLM Proxy (Railway)        │  Layer 2 — virtual keys, spend tracking, routing
-│  https://<your-app>.railway.app │
+│  https://ai-api-router.up.railway.app │
 └──────────────┬──────────────────┘
                │  ③ Injects real NAVY_API_KEY
                ▼
@@ -51,9 +51,9 @@ Client App
 | Gateway ID | `ai-api-router` |
 | Gateway URL | `https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/ai-api-router/compat` |
 | CF AIG Token | Set in Cloudflare dashboard |
-| Origin URL | Your Railway LiteLLM proxy URL |
+| Origin URL | `https://ai-api-router.up.railway.app` |
 
-> **Important:** In the Cloudflare AI Gateway dashboard, set the **origin/upstream URL** to your Railway deployment URL.
+> **Important:** In the Cloudflare AI Gateway dashboard, set the **origin/upstream URL** to `https://ai-api-router.up.railway.app`.
 
 ### Calling the API
 
