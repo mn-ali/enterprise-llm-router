@@ -41,9 +41,17 @@ Client App
 
 ---
 
-## Cloudflare AI Gateway
+## Cloudflare AI Gateway (Custom Provider)
 
-### Configuration
+Cloudflare does not natively know about your Railway deployment. You must configure it as a **Custom Provider**:
+
+1. Log in to the Cloudflare Dashboard.
+2. Go to **Compute & AI > AI Gateway > Custom Providers**.
+3. Click **Add Custom Provider**.
+4. Set the **Provider Name** to `litellm`.
+5. Set the **Base URL** to `https://ai-api-router.up.railway.app`.
+
+### Configuration Details
 
 | Setting | Value |
 |---|---|
@@ -51,9 +59,6 @@ Client App
 | Gateway ID | `ai-api-router` |
 | Gateway URL | `https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/ai-api-router/compat` |
 | CF AIG Token | Set in Cloudflare dashboard |
-| Origin URL | `https://ai-api-router.up.railway.app` |
-
-> **Important:** In the Cloudflare AI Gateway dashboard, set the **origin/upstream URL** to `https://ai-api-router.up.railway.app`.
 
 ### Calling the API
 
@@ -65,7 +70,7 @@ curl -X POST https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e0
   --header 'Authorization: Bearer <LITELLM_VIRTUAL_KEY>' \
   --header 'Content-Type: application/json' \
   --data '{
-    "model": "navy-deepseek",
+    "model": "custom-litellm/navy-deepseek",
     "messages": [{"role": "user", "content": "What is Cloudflare?"}]
   }'
 ```
@@ -84,7 +89,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="navy-deepseek",
+    model="custom-litellm/navy-deepseek",
     messages=[{"role": "user", "content": "Hello!"}]
 )
 print(response.choices[0].message.content)
@@ -98,7 +103,7 @@ from langchain_openai import ChatOpenAI
 llm = ChatOpenAI(
     openai_api_base="https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/ai-api-router/compat",
     openai_api_key="<LITELLM_VIRTUAL_KEY>",
-    model="navy-deepseek",
+    model="custom-litellm/navy-deepseek",
     default_headers={
         "cf-aig-authorization": "Bearer <CF_AIG_TOKEN>"
     }
