@@ -48,8 +48,8 @@ Client App
 | Setting | Value |
 |---|---|
 | Account ID | `ddebd88ecea4b732187ed293d664e070` |
-| Gateway ID | `default` |
-| Gateway URL | `https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/default` |
+| Gateway ID | `ai-api-router` |
+| Gateway URL | `https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/ai-api-router/compat` |
 | CF AIG Token | Set in Cloudflare dashboard |
 | Origin URL | Your Railway LiteLLM proxy URL |
 
@@ -60,7 +60,7 @@ Client App
 #### Curl
 
 ```bash
-curl -X POST https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/default/compat/chat/completions \
+curl -X POST https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/ai-api-router/compat/chat/completions \
   --header 'cf-aig-authorization: Bearer <CF_AIG_TOKEN>' \
   --header 'Authorization: Bearer <LITELLM_VIRTUAL_KEY>' \
   --header 'Content-Type: application/json' \
@@ -76,7 +76,7 @@ curl -X POST https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e0
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/default/compat",
+    base_url="https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/ai-api-router/compat",
     api_key="<LITELLM_VIRTUAL_KEY>",
     default_headers={
         "cf-aig-authorization": "Bearer <CF_AIG_TOKEN>"
@@ -96,7 +96,7 @@ print(response.choices[0].message.content)
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    openai_api_base="https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/default/compat",
+    openai_api_base="https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/ai-api-router/compat",
     openai_api_key="<LITELLM_VIRTUAL_KEY>",
     model="navy-deepseek",
     default_headers={
