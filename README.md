@@ -1,99 +1,118 @@
 # 🚀 LiteLLM Proxy — Unified LLM Gateway
 
-A Docker-based deployment of [LiteLLM Proxy](https://docs.litellm.ai/) providing a single OpenAI-compatible API gateway to 100+ LLM providers.
+A Docker-based deployment of [LiteLLM Proxy](https://docs.litellm.ai/) providing a single OpenAI-compatible API gateway to 100+ LLM providers, fronted by **Cloudflare AI Gateway** for two-layer security.
+
+## Architecture
+
+```
+Client App
+   │  ① cf-aig-authorization (CF token) + Authorization (LiteLLM virtual key)
+   ▼
+┌─────────────────────────────────┐
+│  Cloudflare AI Gateway          │  Layer 1 — auth, analytics, caching, rate limiting
+│  gateway.ai.cloudflare.com      │
+└──────────────┬──────────────────┘
+               │  ② Forwards Authorization header
+               ▼
+┌─────────────────────────────────┐
+│  LiteLLM Proxy (Railway)        │  Layer 2 — virtual keys, spend tracking, routing
+│  https://<your-app>.railway.app │
+└──────────────┬──────────────────┘
+               │  ③ Injects real NAVY_API_KEY
+               ▼
+┌─────────────────────────────────┐
+│  Navy AI (DeepSeek v3.2)        │  Layer 3 — actual LLM provider
+└─────────────────────────────────┘
+```
+
+> **The real API keys never leave your server.**
+
+---
 
 ## Features
 
-- **Unified API** — OpenAI-compatible `/chat/completions`, `/completions`, `/embeddings` endpoints
-- **Multi-Provider** — Azure OpenAI, Anthropic Claude, Huggingface, AWS Bedrock, OpenAI, Ollama, TogetherAI, Cohere
+- **Two-Layer Security** — Cloudflare AI Gateway + LiteLLM virtual keys
+- **Unified API** — OpenAI-compatible `/chat/completions`, `/completions`, `/embeddings`
 - **Admin UI** — Web dashboard at `/ui` for model management, key management, spend tracking
 - **Cost Tracking** — Per-key and per-team spend tracking via PostgreSQL
 - **Load Balancing** — Route between multiple deployments of the same model
-- **Virtual Keys** — Create API keys with budgets, rate limits, and model access controls
-- **Rate Limiting** — Distributed rate limiting via Redis
+- **Virtual Keys** — API keys with budgets, rate limits, and model access controls
+- **Observability** — Cloudflare dashboard for request analytics, caching, and logging
 
 ---
 
-## Quick Start
+## Cloudflare AI Gateway
 
-### 1. Configure Environment
+### Configuration
 
-```bash
-cp .env.example .env
-```
+| Setting | Value |
+|---|---|
+| Account ID | `ddebd88ecea4b732187ed293d664e070` |
+| Gateway ID | `default` |
+| Gateway URL | `https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/default` |
+| CF AIG Token | Set in Cloudflare dashboard |
+| Origin URL | Your Railway LiteLLM proxy URL |
 
-Edit `.env` and fill in your API keys for the providers you want to use. At minimum you need:
-- `LITELLM_MASTER_KEY` — set a secure master key
-- `UI_USERNAME` / `UI_PASSWORD` — admin dashboard credentials
-- API keys for your LLM providers (Azure, Anthropic, etc.)
+> **Important:** In the Cloudflare AI Gateway dashboard, set the **origin/upstream URL** to your Railway deployment URL.
 
-### 2. Start with Docker Compose
+### Calling the API
 
-```bash
-docker-compose up -d
-```
-
-This starts:
-| Service | Port | Description |
-|---------|------|-------------|
-| **LiteLLM Proxy** | `4000` | API gateway + Admin UI |
-| **PostgreSQL** | `5432` | Spend tracking & key storage |
-| **Redis** | `6379` | Rate limiting & caching |
-
-### 3. Access the Services
-
-| URL | Description |
-|-----|-------------|
-| http://localhost:4000/ui | 🎛️ Admin Dashboard (login with `UI_USERNAME`/`UI_PASSWORD`) |
-| http://localhost:4000/docs | 📖 Swagger API Docs |
-| http://localhost:4000/health | ❤️ Health Check |
-
----
-
-## Usage
-
-### Curl
+#### Curl
 
 ```bash
-curl http://localhost:4000/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
-  -d '{
-    "model": "gpt-4",
-    "messages": [{"role": "user", "content": "Hello!"}]
+curl -X POST https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/default/compat/chat/completions \
+  --header 'cf-aig-authorization: Bearer <CF_AIG_TOKEN>' \
+  --header 'Authorization: Bearer <LITELLM_VIRTUAL_KEY>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "model": "navy-deepseek",
+    "messages": [{"role": "user", "content": "What is Cloudflare?"}]
   }'
 ```
 
-### OpenAI Python SDK
+#### Python (OpenAI SDK)
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="http://localhost:4000",
-    api_key="your-litellm-master-key"
+    base_url="https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/default/compat",
+    api_key="<LITELLM_VIRTUAL_KEY>",
+    default_headers={
+        "cf-aig-authorization": "Bearer <CF_AIG_TOKEN>"
+    }
 )
 
 response = client.chat.completions.create(
-    model="claude-sonnet",  # routes to Anthropic Claude
+    model="navy-deepseek",
     messages=[{"role": "user", "content": "Hello!"}]
 )
 print(response.choices[0].message.content)
 ```
 
-### Langchain
+#### Langchain
 
 ```python
 from langchain_openai import ChatOpenAI
 
 llm = ChatOpenAI(
-    openai_api_base="http://localhost:4000",
-    openai_api_key="your-litellm-master-key",
-    model="gpt-4"
+    openai_api_base="https://gateway.ai.cloudflare.com/v1/ddebd88ecea4b732187ed293d664e070/default/compat",
+    openai_api_key="<LITELLM_VIRTUAL_KEY>",
+    model="navy-deepseek",
+    default_headers={
+        "cf-aig-authorization": "Bearer <CF_AIG_TOKEN>"
+    }
 )
 
 response = llm.invoke("Hello!")
 ```
+
+### Auth Headers Explained
+
+| Header | Purpose | Who validates it |
+|---|---|---|
+| `cf-aig-authorization: Bearer <token>` | Authenticates with Cloudflare gateway | Cloudflare |
+| `Authorization: Bearer <key>` | LiteLLM virtual key (forwarded by CF) | LiteLLM Proxy |
 
 ---
 
@@ -101,45 +120,73 @@ response = llm.invoke("Hello!")
 
 | Alias | Provider | Model |
 |-------|----------|-------|
-| `gpt-4` | Azure OpenAI | gpt-4 |
-| `gpt-4o` | Azure OpenAI | gpt-4o |
-| `gpt-3.5-turbo` | Azure OpenAI | gpt-35-turbo |
-| `claude-sonnet` | Anthropic | claude-sonnet-4-20250514 |
-| `claude-haiku` | Anthropic | claude-3-5-haiku |
-| `claude-opus` | Anthropic | claude-3-opus |
-| `hf-starcoder` | Huggingface | bigcode/starcoder |
-| `hf-mistral` | Huggingface | Mistral-7B-Instruct |
-| `bedrock-claude` | AWS Bedrock | claude-3-sonnet |
-| `bedrock-titan` | AWS Bedrock | titan-text-express |
-| `openai-gpt-4` | OpenAI | gpt-4 |
-| `openai-gpt-4o` | OpenAI | gpt-4o |
-| `ollama-llama3` | Ollama (local) | llama3 |
-| `ollama-mistral` | Ollama (local) | mistral |
-| `together-mixtral` | Together AI | Mixtral-8x7B |
-| `cohere-command` | Cohere | command-r-plus |
+| `navy-deepseek` | Navy AI | DeepSeek v3.2 |
 
-> **Tip:** You can also add models via the Admin UI at `/ui` without restarting the proxy.
+> **Tip:** Add more models via `litellm_config.yaml` or the Admin UI at `/ui`.
 
 ---
 
-## Adding New Models
+## Railway Deployment
 
-Edit `litellm_config.yaml` and add an entry under `model_list`:
+### Environment Variables
 
-```yaml
-- model_name: my-new-model          # alias your apps will use
-  litellm_params:
-    model: provider/actual-model-id  # e.g. anthropic/claude-3-opus-20240229
-    api_key: os.environ/MY_API_KEY
-```
+Set these in your Railway **LiteLLM service → Variables** tab:
 
-Then restart:
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+| `LITELLM_MASTER_KEY` | Your secure master key |
+| `NAVY_API_KEY` | Your Navy AI API key |
+| `STORE_MODEL_IN_DB` | `True` |
+| `LITELLM_LOG` | `INFO` |
+
+### Services
+
+| Service | Purpose |
+|---------|---------|
+| **LiteLLM Proxy** | API gateway + Admin UI |
+| **PostgreSQL** | Spend tracking & key storage |
+
+---
+
+## Local Development (Docker Compose)
 
 ```bash
-docker-compose restart litellm
+cp .env.example .env
+# Fill in API keys in .env
+docker-compose up -d
 ```
 
-Or add models dynamically via the Admin UI at `http://localhost:4000/ui`.
+| Service | Port | Description |
+|---------|------|-------------|
+| **LiteLLM Proxy** | `4000` | API gateway + Admin UI |
+| **PostgreSQL** | `5432` | Spend tracking & key storage |
+| **Redis** | `6379` | Rate limiting & caching |
+
+| URL | Description |
+|-----|-------------|
+| http://localhost:4000/ui | 🎛️ Admin Dashboard |
+| http://localhost:4000/docs | 📖 Swagger API Docs |
+| http://localhost:4000/health | ❤️ Health Check |
+
+---
+
+## Key Management (Virtual Keys)
+
+Generate API keys with budgets and rate limits:
+
+```bash
+curl http://localhost:4000/key/generate \
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "models": ["navy-deepseek"],
+    "max_budget": 100,
+    "duration": "30d"
+  }'
+```
+
+Or manage keys through the Admin UI at `/ui`.
 
 ---
 
@@ -155,44 +202,9 @@ docker-compose restart litellm
 # Stop everything
 docker-compose down
 
-# Stop and remove data volumes
-docker-compose down -v
-
 # Rebuild after Dockerfile changes
 docker-compose up -d --build
 ```
-
----
-
-## Debugging
-
-```bash
-# Set in .env for verbose logging
-LITELLM_LOG=DEBUG
-
-# Or check health
-curl http://localhost:4000/health/liveliness
-curl http://localhost:4000/health/readiness
-```
-
----
-
-## Key Management (Virtual Keys)
-
-Generate API keys with budgets and rate limits:
-
-```bash
-curl http://localhost:4000/key/generate \
-  -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "models": ["gpt-4", "claude-sonnet"],
-    "max_budget": 100,
-    "duration": "30d"
-  }'
-```
-
-Or manage keys through the Admin UI at `/ui`.
 
 ---
 
@@ -200,5 +212,5 @@ Or manage keys through the Admin UI at `/ui`.
 
 - [LiteLLM Docs](https://docs.litellm.ai/)
 - [LiteLLM Proxy Config](https://docs.litellm.ai/docs/proxy/configs)
+- [Cloudflare AI Gateway Docs](https://developers.cloudflare.com/ai-gateway/)
 - [Supported Models](https://docs.litellm.ai/docs/providers)
-- [LiteLLM GitHub](https://github.com/BerriAI/litellm)
