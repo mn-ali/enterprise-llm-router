@@ -34,9 +34,9 @@ model_list:
   # =========================================================================
   # Navy AI (OpenAI Compatible) — Primary Provider
   # =========================================================================
-  - model_name: navy-deepseek
+  - model_name: navy-gpt-4o
     litellm_params:
-      model: openai/deepseek-v3.2
+      model: openai/gpt-4o
       api_base: https://api.navy/v1
       api_key: os.environ/NAVY_API_KEY
 
